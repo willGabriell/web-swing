@@ -20,6 +20,8 @@ export const TILT_SPEED_REF = 20 // |v| onde o tilt chega no maximo
 export const TILT_LAMBDA = 6 // taxa da suavizacao exponencial (MathUtils.damp) do roll
 export const PLAYER_RADIUS = 0.4 // raio horizontal do corpo, pra colisao com predios
 export const HEAD_ROOM = 0.2 // quanto o corpo passa acima do olho (EYE_HEIGHT), topo do AABB
+export const SPAWN = new Vector3(0, EYE_HEIGHT, 0) // celula central vazia da cidade (src/scene/city.ts)
+export const KILL_Y = -20 // abaixo disso, respawna (rede de seguranca; hoje inalcancavel, chao infinito segura antes)
 
 export type Body = {
   position: Vector3
@@ -196,6 +198,17 @@ export function stepBody(body: Body, input: Input, delta: number, boxes: Box3[] 
       body.grounded = landedOnRoof
     }
   }
+}
+
+/**
+ * Fora da area de teste: abaixo do kill plane (KILL_Y) ou alem da borda do
+ * mapa (raio XZ maior que mapRadius, tipicamente MAP_RADIUS de city.ts).
+ * `mapRadius` vem por parametro pra essa funcao continuar pura e sem
+ * depender de city.ts (fisica desacoplada de como o mapa e gerado).
+ */
+export function outOfBounds(position: Vector3, mapRadius: number): boolean {
+  if (position.y < KILL_Y) return true
+  return position.x * position.x + position.z * position.z > mapRadius * mapRadius
 }
 
 /**

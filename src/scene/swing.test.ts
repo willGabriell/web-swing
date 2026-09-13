@@ -1,6 +1,7 @@
 import { test, expect } from 'vitest'
 import { Box3, Vector3 } from 'three'
 import {
+  outOfBounds,
   resolveCollisions,
   solveRopeConstraint,
   stepBody,
@@ -9,6 +10,7 @@ import {
   EYE_HEIGHT,
   GRAVITY,
   WALK_SPEED,
+  KILL_Y,
   MAX_DELTA,
   MAX_SPEED,
   PLAYER_RADIUS,
@@ -322,4 +324,18 @@ test('colisao durante o balanco nao atravessa a parede (sem tunelamento)', () =>
 
   // margem de meio substep (MAX_SPEED * h) pra penetracao antes da correcao do proximo passo
   expect(minX).toBeGreaterThan(box.max.x + PLAYER_RADIUS - 0.5)
+})
+
+// --- outOfBounds ---
+
+test('dentro da borda do mapa e acima do kill plane: dentro dos limites', () => {
+  expect(outOfBounds(new Vector3(10, EYE_HEIGHT, -10), 100)).toBe(false)
+})
+
+test('abaixo do kill plane: fora dos limites', () => {
+  expect(outOfBounds(new Vector3(0, KILL_Y - 1, 0), 100)).toBe(true)
+})
+
+test('alem do raio horizontal do mapa: fora dos limites', () => {
+  expect(outOfBounds(new Vector3(150, EYE_HEIGHT, 0), 100)).toBe(true)
 })

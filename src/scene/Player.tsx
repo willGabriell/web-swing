@@ -4,13 +4,15 @@ import { Line, PointerLockControls } from '@react-three/drei'
 import { MathUtils, Raycaster, Vector3 } from 'three'
 import type { Line2 } from 'three-stdlib'
 import { useKeyboard } from '../hooks/useKeyboard'
-import { buildCity, cityColliders } from './city'
+import { buildCity, cityColliders, MAP_RADIUS } from './city'
 import {
   EYE_HEIGHT,
   HAND_DOWN,
   HAND_RIGHT,
   MAX_ROPE,
   MIN_ROPE,
+  outOfBounds,
+  SPAWN,
   stepBody,
   tiltTarget,
   TILT_LAMBDA,
@@ -116,6 +118,17 @@ export function Player({ onLock, onUnlock, onAimChange, speed }: PlayerProps) {
     _input.jump = k.has('Space')
 
     stepBody(body.current, _input, delta, boxes)
+
+    // fora da area de teste (caiu do mapa ou saiu da cidade): respawn
+    if (outOfBounds(camera.position, MAP_RADIUS)) {
+      camera.position.copy(SPAWN) // body.current.position e a mesma referencia (alias)
+      body.current.velocity.set(0, 0, 0)
+      body.current.anchor = null
+      body.current.grounded = true
+      roll.current = 0
+      camera.rotation.z = 0
+    }
+
     if (speed) speed.current = body.current.velocity.length()
 
     // raycast de mira: roda todo frame pra alimentar o crosshair dinamico e o clique
