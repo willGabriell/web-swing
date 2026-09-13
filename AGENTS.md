@@ -57,14 +57,26 @@ src/
   `velocity` fora de `stepBody` — é assim que se perde momentum sem querer.
 - **Tuning de feel = constantes no topo de `swing.ts`.** Knobs principais:
   `SWING_ACCEL` (força do bombear), `GROUND_ACCEL` (quanto o pouso desliza),
-  `AIR_ACCEL`, `MAX_SPEED`. Testes cobrem invariantes (corda não estica,
-  energia, momentum), não valores exatos — mexer nos knobs não quebra teste.
+  `AIR_ACCEL`, `MAX_SPEED`, `TILT_MAX`/`TILT_SPEED_REF`/`TILT_LAMBDA` (roll de
+  câmera). Testes cobrem invariantes (corda não estica, energia, momentum,
+  sinal/teto do tilt), não valores exatos — mexer nos knobs não quebra teste.
+  `MAX_ROPE`/`MIN_ROPE` (alcance do raycast) moram aqui também, não em
+  `Player.tsx`.
+- **`camera.rotation.order = 'YXZ'`, setado uma vez no efeito de setup.**
+  `PointerLockControls` decompõe a rotação nessa ordem e só sobrescreve
+  `x`/`y` (mouse look), preservando `z`. Sem isso, escrever `camera.rotation.z`
+  (tilt de câmera) reinterpreta yaw/pitch e entorta a vista.
+- **HUD/overlays que mudam todo frame lêem um `ref` compartilhado via seu
+  próprio `requestAnimationFrame`, nunca `state` por frame.** Ex.:
+  `SpeedHud.tsx` lê `speed.current` (escrito pelo `Player` no `useFrame`) e
+  escreve direto no `textContent` — zero re-render do React por frame.
 
 ## Specs
 
 O planejamento de cada sprint fica em `.specs/` (fora do controle de
 versão — ver `.gitignore`). Sprint 0 (setup + FPS básico), Sprint 1 (teia +
-balanço) e Sprint 1.5 (polish da física) já implementadas; próximas specs
+balanço), Sprint 1.5 (polish da física) e Sprint 2 (corda visual, crosshair
+dinâmico, tilt de câmera, HUD de velocidade) já implementadas; próximas specs
 devem seguir o mesmo padrão: um commit por subspec.
 
 - **Física pura fica fora do r3f.** Lógica testável sem `useFrame`/câmera

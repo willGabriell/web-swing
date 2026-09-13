@@ -5,11 +5,22 @@ versionamento seguindo [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-13
+
+Sprint 1.5 (polish da física) + Sprint 2 (feedback visual do balanço) —
+a teia agora "dá aquele uou": corda visível, crosshair reativo, câmera que
+acompanha a curva.
+
 ### Added
 - Controle no ar: WASD acelera levemente o jogador depois de soltar a teia (`AIR_ACCEL`), sem nunca frear o momentum
 - Impulso no balanço: WASD "bombeia" o pêndulo enquanto preso na teia (`SWING_ACCEL`), dá pra começar um balanço do repouso e ganhar velocidade em cada arco
 - Teto de velocidade (`MAX_SPEED`) pra bombear não crescer sem limite
-- Testes de `stepBody`: pêndulo conserva energia, corda nunca estica, independência de framerate, pouso preserva momentum, clamp de delta
+- Corda visual (`Line` do drei) ligando a "mão" (câmera deslocada) ao anchor, atualizada por frame enquanto o balanço estiver ativo
+- Crosshair dinâmico: raycast de mira roda todo frame e muda a cor/gap do crosshair quando o alvo mirado é válido pra teia, antes mesmo do clique
+- Tilt de câmera: `tiltTarget` (`swing.ts`) calcula o roll alvo a partir da direção pro anchor e da velocidade; `Player.tsx` suaviza com `MathUtils.damp` e escreve em `camera.rotation.z`
+- HUD de velocidade (`SpeedHud.tsx`) mostrando `|velocity|` em m/s, toggle por F3
+- `MIN_ROPE`: hit mais perto que isso não prende a teia
+- Testes de `stepBody`/`tiltTarget`: pêndulo conserva energia, corda nunca estica, independência de framerate, pouso preserva momentum, clamp de delta, sinal e teto do tilt
 
 ### Changed
 - Física do jogador unificada em `stepBody` (`src/scene/swing.ts`): chão, ar e teia são só regras de aceleração sobre uma velocidade única. `Player.tsx` virou wiring de input → física
@@ -17,7 +28,10 @@ versionamento seguindo [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - Pouso não zera mais a velocidade: momentum horizontal freia gradualmente (`GROUND_ACCEL`), soltar no ápice e aterrissar vira um deslize em vez de parada seca
 - Andar no chão agora é por velocidade (aceleração até `WALK_SPEED`), não soma de posição
 - Anchor e marcador de debug saíram do `useState` pra `ref`: clique não re-renderiza e a física começa no mesmo frame
-- Constantes de física (`GRAVITY`, `EYE_HEIGHT`, `WALK_SPEED`, `JUMP_SPEED`, ...) movidas de `Player.tsx` pra `swing.ts`
+- Constantes de física (`GRAVITY`, `EYE_HEIGHT`, `WALK_SPEED`, `JUMP_SPEED`, `MAX_ROPE`, ...) centralizadas em `swing.ts`
+- Raycast de teia deixou de rodar só no clique: `onPointerDown` agora consome o resultado do raycast contínuo do `useFrame`
+- Marcador esférico de debug do anchor removido, substituído pela corda visual
+- `camera.rotation.order` fixado em `YXZ` pra o roll de câmera sobreviver ao mouse look do `PointerLockControls` sem entortar a vista
 
 ## [0.2.0] - 2026-09-13
 
