@@ -8,6 +8,7 @@ import {
   GRAVITY,
   WALK_SPEED,
   MAX_DELTA,
+  MAX_SPEED,
 } from './swing'
 
 const ZERO = new Vector3()
@@ -188,4 +189,37 @@ test('soltar a teia preserva a velocidade (spec 1.3)', () => {
   stepBody(body, { move: ZERO, jump: false }, 1 / 60)
   expect(body.velocity.x).toBeCloseTo(v0.x, 6)
   expect(body.velocity.z).toBeCloseTo(v0.z, 6)
+})
+
+test('teto de velocidade', () => {
+  const body = makeBody({
+    position: new Vector3(0, 100, 0),
+    velocity: new Vector3(100, 0, 0),
+    grounded: false,
+  })
+  stepBody(body, { move: ZERO, jump: false }, 1 / 60)
+  expect(body.velocity.length()).toBeLessThanOrEqual(MAX_SPEED + 1e-9)
+})
+
+test('bombear com WASD inicia o balanco do repouso', () => {
+  const body = makeBody({
+    position: new Vector3(0, 10, 0), // pendurado reto abaixo do anchor, parado
+    anchor: new Vector3(0, 20, 0),
+    ropeLength: 10,
+    grounded: false,
+  })
+  run(body, 1, 1 / 60, FORWARD)
+  expect(body.velocity.length()).toBeGreaterThan(1)
+  expect(body.position.z).toBeLessThan(-1)
+})
+
+test('controle no ar: input soma velocidade, sem input nao freia', () => {
+  const body = makeBody({
+    position: new Vector3(0, 100, 0),
+    velocity: new Vector3(10, 0, 0),
+    grounded: false,
+  })
+  run(body, 0.5, 1 / 60, FORWARD)
+  expect(body.velocity.x).toBe(10)
+  expect(body.velocity.z).toBeLessThan(-1)
 })

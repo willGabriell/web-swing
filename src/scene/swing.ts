@@ -5,6 +5,9 @@ export const GRAVITY = 20
 export const EYE_HEIGHT = 1.7 // altura da camera em relacao ao chao (Y = 0)
 export const WALK_SPEED = 4
 export const GROUND_ACCEL = 30 // chao: velocidade horizontal vai pro alvo do WASD a essa taxa; alvo zero = atrito (pouso freia em ~v/30 s)
+export const AIR_ACCEL = 6 // ar: controle leve; so soma, nunca freia (momentum da soltura fica)
+export const SWING_ACCEL = 8 // teia: "bombear" o balanco com WASD. Knob principal de feel, testar 6..12
+export const MAX_SPEED = 35 // teto de |v|; sem isso bombear cresce sem limite
 export const JUMP_SPEED = 7
 export const MAX_STEP = 1 / 120 // substep maximo do integrador
 export const MAX_DELTA = 0.1 // clamp do delta de frame (aba em background, lag spike)
@@ -55,9 +58,10 @@ export function solveRopeConstraint(
  * restricao da corda ficar estavel independente do framerate; delta clampado
  * em MAX_DELTA pra nao teleportar depois de uma aba em background.
  *
- * Ordem por substep: input -> gravidade -> integra (Euler semi-implicito) ->
- * corda -> chao. Corda e chao sao restricoes de posicao, ambas corrigem
- * posicao e velocidade no mesmo passo. Muta body in-place.
+ * Ordem por substep: input -> gravidade -> clamp de velocidade -> integra
+ * (Euler semi-implicito) -> corda -> chao. Corda e chao sao restricoes de
+ * posicao, ambas corrigem posicao e velocidade no mesmo passo. Muta body
+ * in-place.
  *
  * ponytail: a projecao tangente da corda perde ~v^2*h/(2L^2) de velocidade
  * por segundo (<1% nos casos reais). Trocar por passo geodesico na esfera
@@ -77,7 +81,9 @@ export function stepBody(body: Body, input: Input, delta: number): void {
   for (let i = 0; i < n; i++) {
     // 1. input
     if (body.anchor) {
-      // spec 1.5
+      // bombear: acelera na direcao do input, a corda remove a parte radial no passo 4
+      // ponytail: sem atrito no chao durante o swing; adicionar se o arrasto incomodar
+      v.addScaledVector(input.move, SWING_ACCEL * h)
     } else if (body.grounded) {
       const tx = input.move.x * WALK_SPEED
       const tz = input.move.z * WALK_SPEED
@@ -93,19 +99,22 @@ export function stepBody(body: Body, input: Input, delta: number): void {
         v.z += (dz / dist) * step
       }
     } else {
-      // spec 1.5
+      v.addScaledVector(input.move, AIR_ACCEL * h)
     }
 
     // 2. gravidade
     v.y -= GRAVITY * h
 
-    // 3. integra
+    // 3. clamp de velocidade
+    if (v.lengthSq() > MAX_SPEED * MAX_SPEED) v.setLength(MAX_SPEED)
+
+    // 4. integra
     p.addScaledVector(v, h)
 
-    // 4. corda
+    // 5. corda
     if (body.anchor) solveRopeConstraint(p, v, body.anchor, body.ropeLength)
 
-    // 5. chao
+    // 6. chao
     if (p.y <= EYE_HEIGHT) {
       p.y = EYE_HEIGHT
       if (v.y < 0) v.y = 0
