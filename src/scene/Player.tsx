@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { PointerLockControls } from '@react-three/drei'
 import { Raycaster, Vector3 } from 'three'
 import { useKeyboard } from '../hooks/useKeyboard'
+import { solveRopeConstraint } from './swing'
 
 const SPEED = 4 // unidades/segundo
 const GRAVITY = 20 // unidades/segundo^2
@@ -25,7 +26,7 @@ type PlayerProps = {
 export function Player({ onLock, onUnlock }: PlayerProps) {
   const { camera, scene } = useThree()
   const keys = useKeyboard()
-  const velocityY = useRef(0)
+  const velocity = useRef(new Vector3())
   const [anchor, setAnchor] = useState<Vector3 | null>(null)
   const ropeLength = useRef(0)
 
@@ -68,6 +69,19 @@ export function Player({ onLock, onUnlock }: PlayerProps) {
   useFrame((_, delta) => {
     const k = keys.current
 
+    if (anchor) {
+      // --- balanco: fisica ditada pela corda, sem input direto de WASD ---
+      velocity.current.y -= GRAVITY * delta
+      camera.position.addScaledVector(velocity.current, delta)
+      solveRopeConstraint(camera.position, velocity.current, anchor, ropeLength.current)
+
+      if (camera.position.y < EYE_HEIGHT) {
+        camera.position.y = EYE_HEIGHT
+        velocity.current.y = 0
+      }
+      return
+    }
+
     // --- movimento horizontal, relativo ao yaw da camera (pitch ignorado) ---
     camera.getWorldDirection(_forward)
     _forward.y = 0
@@ -87,15 +101,15 @@ export function Player({ onLock, onUnlock }: PlayerProps) {
     // --- gravidade + pulo ---
     const grounded = camera.position.y <= EYE_HEIGHT
     if (grounded && k.has('Space')) {
-      velocityY.current = JUMP_SPEED
+      velocity.current.y = JUMP_SPEED
     }
 
-    velocityY.current -= GRAVITY * delta
-    camera.position.y += velocityY.current * delta
+    velocity.current.y -= GRAVITY * delta
+    camera.position.addScaledVector(velocity.current, delta)
 
     if (camera.position.y < EYE_HEIGHT) {
       camera.position.y = EYE_HEIGHT
-      velocityY.current = 0
+      velocity.current.set(0, 0, 0)
     }
   })
 
