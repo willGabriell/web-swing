@@ -13,7 +13,7 @@ function App() {
 
   return (
     <>
-      <Canvas style={{ width: '100vw', height: '100vh', display: 'block' }}>
+      <Canvas shadows style={{ width: '100vw', height: '100vh', display: 'block' }}>
         <Environment />
         <Player
           onLock={() => setLocked(true)}
