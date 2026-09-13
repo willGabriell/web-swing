@@ -62,6 +62,12 @@ export function Player({ onLock, onUnlock, onAimChange, speed }: PlayerProps) {
     // (mouse look), preservando z (roll). Sem isso aqui o euler fica na ordem
     // default (XYZ) e escrever rotation.z reinterpreta yaw/pitch, entortando a vista.
     camera.rotation.order = 'YXZ'
+    // corda comeca escondida. NAO usar a prop `visible` no <Line>: a drei
+    // espalha `rest` tambem no <primitive> do material, e Material.visible
+    // existe (THREE.Material.visible) - isso deixaria o material invisivel
+    // pra sempre, so o objeto voltaria com rope.current.visible = true no
+    // useFrame. Setar aqui, so no objeto, uma vez.
+    if (rope.current) rope.current.visible = false
   }, [camera])
 
   // clique esquerdo consome o resultado do raycast continuo (calculado no useFrame); soltar limpa o anchor
@@ -148,7 +154,7 @@ export function Player({ onLock, onUnlock, onAimChange, speed }: PlayerProps) {
   return (
     <>
       <PointerLockControls onLock={onLock} onUnlock={onUnlock} />
-      <Line ref={rope} points={[[0, 0, 0], [0, 0, 0]]} color="#f2f2f2" lineWidth={2} visible={false} />
+      <Line ref={rope} points={[[0, 0, 0], [0, 0, 0]]} color="#f2f2f2" lineWidth={2} />
     </>
   )
 }
