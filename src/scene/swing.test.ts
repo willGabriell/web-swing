@@ -1,6 +1,7 @@
 import { test, expect } from 'vitest'
-import { Vector3 } from 'three'
+import { Box3, Vector3 } from 'three'
 import {
+  resolveCollisions,
   solveRopeConstraint,
   stepBody,
   tiltTarget,
@@ -10,6 +11,7 @@ import {
   WALK_SPEED,
   MAX_DELTA,
   MAX_SPEED,
+  PLAYER_RADIUS,
   TILT_MAX,
 } from './swing'
 
@@ -261,4 +263,63 @@ test('tilt: velocidade baixa inclina bem menos que velocidade alta', () => {
     velocity: new Vector3(0, 0, 30),
   })
   expect(tiltTarget(slow, RIGHT)).toBeLessThan(tiltTarget(fast, RIGHT) / 2)
+})
+
+// --- resolveCollisions ---
+
+test('colisao lateral bloqueia eixo X e preserva velocidade vertical', () => {
+  const box = new Box3(new Vector3(-5, 0, -5), new Vector3(5, 20, 5))
+  const position = new Vector3(5.2, 10, 0) // penetra 0.2 na face +x do box
+  const velocity = new Vector3(-3, -2, 0)
+
+  const landed = resolveCollisions(position, velocity, [box])
+
+  expect(landed).toBe(false)
+  expect(position.x).toBeCloseTo(box.max.x + PLAYER_RADIUS, 10)
+  expect(velocity.x).toBe(0)
+  expect(velocity.y).toBe(-2) // eixo nao envolvido na colisao fica intacto
+})
+
+test('colisao no topo vira grounded e zera velocidade vertical', () => {
+  const box = new Box3(new Vector3(-5, 0, -5), new Vector3(5, 20, 5))
+  const position = new Vector3(0, box.max.y + EYE_HEIGHT - 0.1, 0) // pes 0.1 dentro do telhado
+  const velocity = new Vector3(2, -5, 0)
+
+  const landed = resolveCollisions(position, velocity, [box])
+
+  expect(landed).toBe(true)
+  expect(velocity.y).toBe(0)
+  expect(velocity.x).toBe(2) // horizontal preservado, so a queda para
+  expect(position.y).toBeCloseTo(box.max.y + EYE_HEIGHT, 10)
+})
+
+test('caixa distante nao altera posicao nem velocidade', () => {
+  const box = new Box3(new Vector3(100, 0, 100), new Vector3(110, 20, 110))
+  const position = new Vector3(0, 10, 0)
+  const velocity = new Vector3(1, -2, 3)
+
+  const landed = resolveCollisions(position, velocity, [box])
+
+  expect(landed).toBe(false)
+  expect(position.equals(new Vector3(0, 10, 0))).toBe(true)
+  expect(velocity.equals(new Vector3(1, -2, 3))).toBe(true)
+})
+
+test('colisao durante o balanco nao atravessa a parede (sem tunelamento)', () => {
+  const box = new Box3(new Vector3(-5, 0, -25), new Vector3(5, 20, 25))
+  const body = makeBody({
+    position: new Vector3(20, 15, 0),
+    anchor: new Vector3(0, 20, 0),
+    ropeLength: 20,
+    grounded: false,
+  })
+
+  let minX = Infinity
+  for (let i = 0; i < 300; i++) {
+    stepBody(body, { move: new Vector3(-1, 0, 0), jump: false }, 1 / 60, [box])
+    minX = Math.min(minX, body.position.x)
+  }
+
+  // margem de meio substep (MAX_SPEED * h) pra penetracao antes da correcao do proximo passo
+  expect(minX).toBeGreaterThan(box.max.x + PLAYER_RADIUS - 0.5)
 })

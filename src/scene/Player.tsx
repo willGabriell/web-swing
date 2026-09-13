@@ -1,9 +1,10 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, type RefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Line, PointerLockControls } from '@react-three/drei'
 import { MathUtils, Raycaster, Vector3 } from 'three'
 import type { Line2 } from 'three-stdlib'
 import { useKeyboard } from '../hooks/useKeyboard'
+import { buildCity, cityColliders } from './city'
 import {
   EYE_HEIGHT,
   HAND_DOWN,
@@ -45,6 +46,9 @@ export function Player({ onLock, onUnlock, onAimChange, speed }: PlayerProps) {
   const rope = useRef<Line2>(null)
   const lastAimValid = useRef(false)
   const roll = useRef(0)
+  // cidade e determinística (seed fixa): gerar de novo aqui e mais barato que
+  // fazer a Environment repassar via contexto/props do Canvas.
+  const boxes = useMemo(() => cityColliders(buildCity()), [])
   // body.position e a propria camera.position (alias): a fisica move a camera direto,
   // sem copia por frame. Tudo em ref, nada de state: clique nao re-renderiza.
   const body = useRef<Body>({
@@ -111,7 +115,7 @@ export function Player({ onLock, onUnlock, onAimChange, speed }: PlayerProps) {
     if (_input.move.lengthSq() > 0) _input.move.normalize()
     _input.jump = k.has('Space')
 
-    stepBody(body.current, _input, delta)
+    stepBody(body.current, _input, delta, boxes)
     if (speed) speed.current = body.current.velocity.length()
 
     // raycast de mira: roda todo frame pra alimentar o crosshair dinamico e o clique

@@ -1,4 +1,4 @@
-import { Vector3 } from 'three'
+import { Box3, Vector3 } from 'three'
 
 // --- constantes de fisica (unidades/segundo, unidades/segundo^2) ---
 export const GRAVITY = 20
@@ -18,6 +18,8 @@ export const HAND_DOWN = 0.25 // corda visual: deslocamento pra baixo, senao nas
 export const TILT_MAX = 0.35 // rad (~20deg), teto do roll de camera no balanco
 export const TILT_SPEED_REF = 20 // |v| onde o tilt chega no maximo
 export const TILT_LAMBDA = 6 // taxa da suavizacao exponencial (MathUtils.damp) do roll
+export const PLAYER_RADIUS = 0.4 // raio horizontal do corpo, pra colisao com predios
+export const HEAD_ROOM = 0.2 // quanto o corpo passa acima do olho (EYE_HEIGHT), topo do AABB
 
 export type Body = {
   position: Vector3
@@ -62,20 +64,80 @@ export function solveRopeConstraint(
 }
 
 /**
+ * Empurra position pra fora da primeira caixa (AABB) com que colidir, pelo
+ * eixo de menor penetracao (min das 6 distancias de correcao). Corpo do
+ * jogador e um AABB: raio PLAYER_RADIUS em X/Z, de `position.y - EYE_HEIGHT`
+ * (pes) a `position.y + HEAD_ROOM` (topo). Zera so a componente de velocity
+ * do eixo empurrado (rope/chao ja fazem o mesmo padrao). Retorna true se o
+ * empurrao foi pra cima (pousou em cima da caixa, vira chao).
+ *
+ * Muta position e velocity in-place.
+ *
+ * ponytail: varre todas as caixas por substep (ex.: 48 predios x 120 Hz).
+ * Grid espacial (hash por celula) so se a cidade crescer e isso pesar.
+ */
+export function resolveCollisions(position: Vector3, velocity: Vector3, boxes: Box3[]): boolean {
+  let landed = false
+  for (const box of boxes) {
+    const minX = position.x - PLAYER_RADIUS
+    const maxX = position.x + PLAYER_RADIUS
+    const minY = position.y - EYE_HEIGHT
+    const maxY = position.y + HEAD_ROOM
+    const minZ = position.z - PLAYER_RADIUS
+    const maxZ = position.z + PLAYER_RADIUS
+
+    if (maxX <= box.min.x || minX >= box.max.x) continue
+    if (maxY <= box.min.y || minY >= box.max.y) continue
+    if (maxZ <= box.min.z || minZ >= box.max.z) continue
+
+    const pushXPos = box.max.x - minX
+    const pushXNeg = maxX - box.min.x
+    const pushYPos = box.max.y - minY
+    const pushYNeg = maxY - box.min.y
+    const pushZPos = box.max.z - minZ
+    const pushZNeg = maxZ - box.min.z
+    const min = Math.min(pushXPos, pushXNeg, pushYPos, pushYNeg, pushZPos, pushZNeg)
+
+    if (min === pushYPos) {
+      position.y += pushYPos
+      if (velocity.y < 0) velocity.y = 0
+      landed = true
+    } else if (min === pushYNeg) {
+      position.y -= pushYNeg
+      if (velocity.y > 0) velocity.y = 0
+    } else if (min === pushXPos) {
+      position.x += pushXPos
+      velocity.x = 0
+    } else if (min === pushXNeg) {
+      position.x -= pushXNeg
+      velocity.x = 0
+    } else if (min === pushZPos) {
+      position.z += pushZPos
+      velocity.z = 0
+    } else {
+      position.z -= pushZNeg
+      velocity.z = 0
+    }
+  }
+  return landed
+}
+
+/**
  * Avanca o corpo em `delta` segundos. Substeps de no maximo MAX_STEP pra
  * restricao da corda ficar estavel independente do framerate; delta clampado
  * em MAX_DELTA pra nao teleportar depois de uma aba em background.
  *
  * Ordem por substep: input -> gravidade -> clamp de velocidade -> integra
- * (Euler semi-implicito) -> corda -> chao. Corda e chao sao restricoes de
- * posicao, ambas corrigem posicao e velocidade no mesmo passo. Muta body
- * in-place.
+ * (Euler semi-implicito) -> corda -> predios -> chao. Corda, predios e chao
+ * sao restricoes de posicao, todas corrigem posicao e velocidade no mesmo
+ * passo. `boxes` default vazio (sem colisao) mantem o comportamento antigo.
+ * Muta body in-place.
  *
  * ponytail: a projecao tangente da corda perde ~v^2*h/(2L^2) de velocidade
  * por segundo (<1% nos casos reais). Trocar por passo geodesico na esfera
  * se um dia virar problema perceptivel.
  */
-export function stepBody(body: Body, input: Input, delta: number): void {
+export function stepBody(body: Body, input: Input, delta: number, boxes: Box3[] = []): void {
   delta = Math.min(delta, MAX_DELTA)
   if (delta <= 0) return
 
@@ -122,13 +184,16 @@ export function stepBody(body: Body, input: Input, delta: number): void {
     // 5. corda
     if (body.anchor) solveRopeConstraint(p, v, body.anchor, body.ropeLength)
 
-    // 6. chao
+    // 6. predios
+    const landedOnRoof = boxes.length > 0 && resolveCollisions(p, v, boxes)
+
+    // 7. chao
     if (p.y <= EYE_HEIGHT) {
       p.y = EYE_HEIGHT
       if (v.y < 0) v.y = 0
       body.grounded = true
     } else {
-      body.grounded = false
+      body.grounded = landedOnRoof
     }
   }
 }
