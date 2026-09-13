@@ -54,5 +54,12 @@ src/
 ## Specs
 
 O planejamento de cada sprint fica em `.specs/` (fora do controle de
-versão — ver `.gitignore`). Sprint 0 (setup + FPS básico) já implementada;
-próximas specs devem seguir o mesmo padrão: um commit por subspec.
+versão — ver `.gitignore`). Sprint 0 (setup + FPS básico) e Sprint 1 (teia +
+balanço) já implementadas; próximas specs devem seguir o mesmo padrão: um
+commit por subspec.
+
+- **Física pura fica fora do r3f.** Lógica testável sem `useFrame`/câmera
+  (ex.: `src/scene/swing.ts`) vai em módulo separado, sem depender de three
+  além dos tipos (`Vector3`). `npm test` roda os testes (`vitest`).
+- **Blocos em `Environment.tsx` são placeholder** até a sprint 3 trazer os
+  prédios de verdade — servem só de alvo pra teia por enquanto.
