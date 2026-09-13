@@ -19,12 +19,21 @@ const _input: Input = { move: new Vector3(), jump: false }
 type PlayerProps = {
   onLock?: () => void
   onUnlock?: () => void
+  onAimChange?: (valid: boolean) => void
 }
 
-export function Player({ onLock, onUnlock }: PlayerProps) {
+// resultado do raycast de mira, atualizado todo frame; anchorPoint e reutilizado (sem clone por frame)
+const _aim: { valid: boolean; anchorPoint: Vector3; ropeLength: number } = {
+  valid: false,
+  anchorPoint: new Vector3(),
+  ropeLength: 0,
+}
+
+export function Player({ onLock, onUnlock, onAimChange }: PlayerProps) {
   const { camera, scene } = useThree()
   const keys = useKeyboard()
   const rope = useRef<Line2>(null)
+  const lastAimValid = useRef(false)
   // body.position e a propria camera.position (alias): a fisica move a camera direto,
   // sem copia por frame. Tudo em ref, nada de state: clique nao re-renderiza.
   const body = useRef<Body>({
@@ -40,22 +49,13 @@ export function Player({ onLock, onUnlock }: PlayerProps) {
     camera.position.y = EYE_HEIGHT
   }, [camera])
 
-  // raycast de teia: clique esquerdo procura anchor, soltar limpa o anchor
+  // clique esquerdo consome o resultado do raycast continuo (calculado no useFrame); soltar limpa o anchor
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
-      if (e.button !== 0 || !document.pointerLockElement) return
-
-      camera.getWorldDirection(_dir)
-      _raycaster.set(camera.position, _dir)
-      _raycaster.far = MAX_ROPE
-
-      const anchorables = scene.getObjectByName('anchorables')
-      if (!anchorables) return
-      const [hit] = _raycaster.intersectObjects(anchorables.children, true)
-      if (!hit) return
-
-      body.current.anchor = hit.point.clone()
-      body.current.ropeLength = hit.distance
+      if (e.button !== 0 || !document.pointerLockElement || !_aim.valid) return
+      // clique nao e por frame: clone() aqui e igual ao custo de antes (hit.point.clone())
+      body.current.anchor = _aim.anchorPoint.clone()
+      body.current.ropeLength = _aim.ropeLength
     }
 
     const onPointerUp = (e: PointerEvent) => {
@@ -71,7 +71,7 @@ export function Player({ onLock, onUnlock }: PlayerProps) {
       window.removeEventListener('pointerdown', onPointerDown)
       window.removeEventListener('pointerup', onPointerUp)
     }
-  }, [camera, scene])
+  }, [])
 
   useFrame((_, delta) => {
     const k = keys.current
@@ -91,6 +91,22 @@ export function Player({ onLock, onUnlock }: PlayerProps) {
     _input.jump = k.has('Space')
 
     stepBody(body.current, _input, delta)
+
+    // raycast de mira: roda todo frame pra alimentar o crosshair dinamico e o clique
+    camera.getWorldDirection(_dir)
+    _raycaster.set(camera.position, _dir)
+    _raycaster.far = MAX_ROPE
+    const anchorables = scene.getObjectByName('anchorables')
+    const [hit] = anchorables ? _raycaster.intersectObjects(anchorables.children, true) : []
+    _aim.valid = !!hit
+    if (hit) {
+      _aim.anchorPoint.copy(hit.point)
+      _aim.ropeLength = hit.distance
+    }
+    if (_aim.valid !== lastAimValid.current) {
+      lastAimValid.current = _aim.valid
+      onAimChange?.(_aim.valid)
+    }
 
     // corda visual: liga a "mao" (camera deslocada, senao nasce dentro do olho) ao anchor
     const anchor = body.current.anchor

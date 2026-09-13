@@ -7,15 +7,20 @@ import { Crosshair } from './components/Crosshair'
 
 function App() {
   const [locked, setLocked] = useState(false)
+  const [canGrapple, setCanGrapple] = useState(false)
 
   return (
     <>
       <Canvas style={{ width: '100vw', height: '100vh', display: 'block' }}>
         <Environment />
-        <Player onLock={() => setLocked(true)} onUnlock={() => setLocked(false)} />
+        <Player
+          onLock={() => setLocked(true)}
+          onUnlock={() => setLocked(false)}
+          onAimChange={setCanGrapple}
+        />
       </Canvas>
       <LockOverlay visible={!locked} />
-      <Crosshair />
+      <Crosshair valid={canGrapple} />
     </>
   )
 }
