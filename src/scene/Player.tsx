@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Line, PointerLockControls } from '@react-three/drei'
 import { MathUtils, Raycaster, Vector3 } from 'three'
@@ -8,14 +8,14 @@ import {
   EYE_HEIGHT,
   HAND_DOWN,
   HAND_RIGHT,
+  MAX_ROPE,
+  MIN_ROPE,
   stepBody,
   tiltTarget,
   TILT_LAMBDA,
   type Body,
   type Input,
 } from './swing'
-
-const MAX_ROPE = 30 // alcance maximo da teia, em unidades
 
 // vetores reutilizados por frame pra evitar alocacao dentro do useFrame
 const _forward = new Vector3()
@@ -29,6 +29,7 @@ type PlayerProps = {
   onLock?: () => void
   onUnlock?: () => void
   onAimChange?: (valid: boolean) => void
+  speed?: RefObject<number>
 }
 
 // resultado do raycast de mira, atualizado todo frame; anchorPoint e reutilizado (sem clone por frame)
@@ -38,7 +39,7 @@ const _aim: { valid: boolean; anchorPoint: Vector3; ropeLength: number } = {
   ropeLength: 0,
 }
 
-export function Player({ onLock, onUnlock, onAimChange }: PlayerProps) {
+export function Player({ onLock, onUnlock, onAimChange, speed }: PlayerProps) {
   const { camera, scene } = useThree()
   const keys = useKeyboard()
   const rope = useRef<Line2>(null)
@@ -105,6 +106,7 @@ export function Player({ onLock, onUnlock, onAimChange }: PlayerProps) {
     _input.jump = k.has('Space')
 
     stepBody(body.current, _input, delta)
+    if (speed) speed.current = body.current.velocity.length()
 
     // raycast de mira: roda todo frame pra alimentar o crosshair dinamico e o clique
     camera.getWorldDirection(_dir)
@@ -112,7 +114,7 @@ export function Player({ onLock, onUnlock, onAimChange }: PlayerProps) {
     _raycaster.far = MAX_ROPE
     const anchorables = scene.getObjectByName('anchorables')
     const [hit] = anchorables ? _raycaster.intersectObjects(anchorables.children, true) : []
-    _aim.valid = !!hit
+    _aim.valid = !!hit && hit.distance >= MIN_ROPE
     if (hit) {
       _aim.anchorPoint.copy(hit.point)
       _aim.ropeLength = hit.distance
