@@ -11,6 +11,8 @@ export const MAX_SPEED = 35 // teto de |v|; sem isso bombear cresce sem limite
 export const JUMP_SPEED = 7
 export const MAX_STEP = 1 / 120 // substep maximo do integrador
 export const MAX_DELTA = 0.1 // clamp do delta de frame (aba em background, lag spike)
+export const HAND_RIGHT = 0.3 // corda visual: deslocamento lateral da origem em relacao a camera
+export const HAND_DOWN = 0.25 // corda visual: deslocamento pra baixo, senao nasce dentro do olho
 
 export type Body = {
   position: Vector3
