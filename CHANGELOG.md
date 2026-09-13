@@ -5,6 +5,20 @@ versionamento seguindo [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Added
+- Controle no ar: WASD acelera levemente o jogador depois de soltar a teia (`AIR_ACCEL`), sem nunca frear o momentum
+- Impulso no balanço: WASD "bombeia" o pêndulo enquanto preso na teia (`SWING_ACCEL`), dá pra começar um balanço do repouso e ganhar velocidade em cada arco
+- Teto de velocidade (`MAX_SPEED`) pra bombear não crescer sem limite
+- Testes de `stepBody`: pêndulo conserva energia, corda nunca estica, independência de framerate, pouso preserva momentum, clamp de delta
+
+### Changed
+- Física do jogador unificada em `stepBody` (`src/scene/swing.ts`): chão, ar e teia são só regras de aceleração sobre uma velocidade única. `Player.tsx` virou wiring de input → física
+- Integrador com substeps (`MAX_STEP` = 1/120 s) e clamp de delta (`MAX_DELTA` = 0.1 s): balanço estável em qualquer framerate, sem teleporte ao voltar de aba em background
+- Pouso não zera mais a velocidade: momentum horizontal freia gradualmente (`GROUND_ACCEL`), soltar no ápice e aterrissar vira um deslize em vez de parada seca
+- Andar no chão agora é por velocidade (aceleração até `WALK_SPEED`), não soma de posição
+- Anchor e marcador de debug saíram do `useState` pra `ref`: clique não re-renderiza e a física começa no mesmo frame
+- Constantes de física (`GRAVITY`, `EYE_HEIGHT`, `WALK_SPEED`, `JUMP_SPEED`, ...) movidas de `Player.tsx` pra `swing.ts`
+
 ## [0.2.0] - 2026-09-13
 
 Sprint 1: mecanica de teia — prende num alvo, balança e solta com o momentum real.

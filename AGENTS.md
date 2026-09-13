@@ -50,13 +50,22 @@ src/
   `useFrame`/`useEffect` por design — é o padrão recomendado pela lib pra
   evitar re-render por frame. A regra do React Compiler não entende esse
   padrão imperativo, então fica desligada só nessa pasta.
+- **Uma velocidade só.** O jogador é um `Body` (`src/scene/swing.ts`) com
+  `position` (alias de `camera.position`), `velocity`, `anchor`, `ropeLength`,
+  `grounded`. Chão, ar e teia não são "modos": são só regras diferentes de
+  aceleração dentro de `stepBody`. Nunca somar posição direto nem zerar
+  `velocity` fora de `stepBody` — é assim que se perde momentum sem querer.
+- **Tuning de feel = constantes no topo de `swing.ts`.** Knobs principais:
+  `SWING_ACCEL` (força do bombear), `GROUND_ACCEL` (quanto o pouso desliza),
+  `AIR_ACCEL`, `MAX_SPEED`. Testes cobrem invariantes (corda não estica,
+  energia, momentum), não valores exatos — mexer nos knobs não quebra teste.
 
 ## Specs
 
 O planejamento de cada sprint fica em `.specs/` (fora do controle de
-versão — ver `.gitignore`). Sprint 0 (setup + FPS básico) e Sprint 1 (teia +
-balanço) já implementadas; próximas specs devem seguir o mesmo padrão: um
-commit por subspec.
+versão — ver `.gitignore`). Sprint 0 (setup + FPS básico), Sprint 1 (teia +
+balanço) e Sprint 1.5 (polish da física) já implementadas; próximas specs
+devem seguir o mesmo padrão: um commit por subspec.
 
 - **Física pura fica fora do r3f.** Lógica testável sem `useFrame`/câmera
   (ex.: `src/scene/swing.ts`) vai em módulo separado, sem depender de three
