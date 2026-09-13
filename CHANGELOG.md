@@ -5,6 +5,25 @@ versionamento seguindo [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-13
+
+Sprint 3 (cidade e leitura visual) — o mapa placeholder vira uma cidade de
+verdade: prédios que colidem, limite de área com respawn, sombras e névoa
+pra dar noção de escala e distância.
+
+### Added
+- Cidade procedural (`src/scene/city.ts`): grid 7x7 de prédios gerado por PRNG seedado (`mulberry32`), célula central vazia como rua de spawn; mesma seed = mesma disposição todo reload
+- Colisão AABB com os prédios (`resolveCollisions`): empurra o corpo pra fora pelo eixo de menor penetração, zera só a velocidade desse eixo; pousar em telhado vira `grounded`
+- Limite da área de teste (`outOfBounds`): sair do raio horizontal da cidade (`MAP_RADIUS`) ou cair abaixo de `KILL_Y` reposiciona o jogador no spawn e zera velocidade/anchor/tilt
+- Sombras: `Canvas shadows`, luz direcional com `castShadow` cobrindo `MAP_RADIUS`, prédios e chão com `castShadow`/`receiveShadow`
+- Chão sólido com material próprio por baixo do `Grid` (que é shader material, não recebe sombra), e `fogExp2` casando com a cor do `Sky`
+- Cores alternadas entre prédios vizinhos, pra contraste de profundidade
+- Testes de `city.ts` (determinismo, célula de spawn vazia, colliders) e de `swing.ts` (colisão lateral/telhado/caixa distante/sem tunelamento, `outOfBounds`)
+
+### Changed
+- `stepBody` ganha parâmetro opcional `boxes` (default vazio — testes antigos intactos); ordem do substep passa a ser corda → prédios → chão
+- `Environment.tsx` não tem mais array de blocos fixo; gera a cidade via `buildCity()`
+
 ## [0.3.0] - 2026-09-13
 
 Sprint 1.5 (polish da física) + Sprint 2 (feedback visual do balanço) —

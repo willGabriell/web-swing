@@ -70,17 +70,27 @@ src/
   próprio `requestAnimationFrame`, nunca `state` por frame.** Ex.:
   `SpeedHud.tsx` lê `speed.current` (escrito pelo `Player` no `useFrame`) e
   escreve direto no `textContent` — zero re-render do React por frame.
+- **Cidade é dados puros, fora do r3f.** `src/scene/city.ts` gera o layout
+  (grid seedado, `mulberry32`) e os colliders (`Box3[]`), sem depender de
+  three além dos tipos — mesmo padrão de `swing.ts`. `Environment.tsx` só
+  renderiza o que `buildCity()` devolve; `Player.tsx` gera os colliders de
+  novo (cidade é determinística, mais barato que repassar via contexto).
+- **Colisão é restrição dentro de `stepBody`, nunca fora dele.** Igual à
+  corda: `resolveCollisions` muta `position`/`velocity` in-place num substep,
+  entre a corda e o chão. Nunca checar/corrigir colisão em `Player.tsx`.
+- **`MAX_ROPE`/`MIN_ROPE` moram em `swing.ts`** (não em `Player.tsx` nem em
+  arquivo de config separado — ver Sprint 2 abaixo).
 
 ## Specs
 
 O planejamento de cada sprint fica em `.specs/` (fora do controle de
 versão — ver `.gitignore`). Sprint 0 (setup + FPS básico), Sprint 1 (teia +
-balanço), Sprint 1.5 (polish da física) e Sprint 2 (corda visual, crosshair
-dinâmico, tilt de câmera, HUD de velocidade) já implementadas; próximas specs
-devem seguir o mesmo padrão: um commit por subspec.
+balanço), Sprint 1.5 (polish da física), Sprint 2 (corda visual, crosshair
+dinâmico, tilt de câmera, HUD de velocidade) e Sprint 3 (cidade procedural,
+colisão com prédios, limite de área/respawn, sombras/névoa) já implementadas;
+próximas specs devem seguir o mesmo padrão: um commit por subspec.
 
 - **Física pura fica fora do r3f.** Lógica testável sem `useFrame`/câmera
-  (ex.: `src/scene/swing.ts`) vai em módulo separado, sem depender de three
-  além dos tipos (`Vector3`). `npm test` roda os testes (`vitest`).
-- **Blocos em `Environment.tsx` são placeholder** até a sprint 3 trazer os
-  prédios de verdade — servem só de alvo pra teia por enquanto.
+  (ex.: `src/scene/swing.ts`, `src/scene/city.ts`) vai em módulo separado, sem
+  depender de three além dos tipos (`Vector3`, `Box3`). `npm test` roda os
+  testes (`vitest`).
