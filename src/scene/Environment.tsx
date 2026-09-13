@@ -13,10 +13,10 @@ export function Environment() {
     <>
       <Sky sunPosition={[100, 20, 100]} />
       <fogExp2 attach="fog" args={[SKY_COLOR, 0.006]} />
-      <ambientLight intensity={0.4} />
+      <ambientLight intensity={0.6} />
       <directionalLight
         position={[80, 100, 40]}
-        intensity={1.2}
+        intensity={2.2}
         castShadow
         shadow-mapSize={[1024, 1024]}
         shadow-camera-left={-MAP_RADIUS}
@@ -29,7 +29,7 @@ export function Environment() {
       {/* chao solido por baixo do Grid (shader material, nao recebe sombra) - mesma serventia de escala */}
       <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -0.01, 0]}>
         <planeGeometry args={[400, 400]} />
-        <meshStandardMaterial color="#2b2f36" />
+        <meshStandardMaterial color="#4a5058" />
       </mesh>
       <Grid
         args={[200, 200]}
