@@ -1,4 +1,18 @@
+import { useEffect, useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import { PointerLockControls } from '@react-three/drei'
+import { Vector3 } from 'three'
+import { useKeyboard } from '../hooks/useKeyboard'
+
+const SPEED = 4 // unidades/segundo
+const GRAVITY = 20 // unidades/segundo^2
+const JUMP_SPEED = 7 // unidades/segundo
+const EYE_HEIGHT = 1.7 // altura da camera em relacao ao chao (Y = 0)
+
+// vetores reutilizados por frame pra evitar alocacao dentro do useFrame
+const _forward = new Vector3()
+const _right = new Vector3()
+const _move = new Vector3()
 
 type PlayerProps = {
   onLock?: () => void
@@ -6,5 +20,48 @@ type PlayerProps = {
 }
 
 export function Player({ onLock, onUnlock }: PlayerProps) {
+  const { camera } = useThree()
+  const keys = useKeyboard()
+  const velocityY = useRef(0)
+
+  // camera comeca em pe no chao (uma vez so, nao a cada render)
+  useEffect(() => {
+    camera.position.y = EYE_HEIGHT
+  }, [camera])
+
+  useFrame((_, delta) => {
+    const k = keys.current
+
+    // --- movimento horizontal, relativo ao yaw da camera (pitch ignorado) ---
+    camera.getWorldDirection(_forward)
+    _forward.y = 0
+    _forward.normalize()
+    _right.set(-_forward.z, 0, _forward.x)
+
+    _move.set(0, 0, 0)
+    if (k.has('KeyW')) _move.add(_forward)
+    if (k.has('KeyS')) _move.sub(_forward)
+    if (k.has('KeyD')) _move.add(_right)
+    if (k.has('KeyA')) _move.sub(_right)
+    if (_move.lengthSq() > 0) {
+      _move.normalize().multiplyScalar(SPEED * delta)
+      camera.position.add(_move)
+    }
+
+    // --- gravidade + pulo ---
+    const grounded = camera.position.y <= EYE_HEIGHT
+    if (grounded && k.has('Space')) {
+      velocityY.current = JUMP_SPEED
+    }
+
+    velocityY.current -= GRAVITY * delta
+    camera.position.y += velocityY.current * delta
+
+    if (camera.position.y < EYE_HEIGHT) {
+      camera.position.y = EYE_HEIGHT
+      velocityY.current = 0
+    }
+  })
+
   return <PointerLockControls onLock={onLock} onUnlock={onUnlock} />
 }

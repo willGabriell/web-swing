@@ -19,4 +19,14 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // react-three-fiber muta objetos three.js (camera, mesh, etc.) direto
+    // dentro de useFrame/useEffect por design (é assim que a lib recomenda
+    // animar, evitando re-render por frame). A regra de imutabilidade do
+    // React Compiler não entende esse padrão imperativo.
+    files: ['src/scene/**/*.{ts,tsx}'],
+    rules: {
+      'react-hooks/immutability': 'off',
+    },
+  },
 ])
