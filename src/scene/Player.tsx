@@ -1,18 +1,21 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PointerLockControls } from '@react-three/drei'
-import { Vector3 } from 'three'
+import { Raycaster, Vector3 } from 'three'
 import { useKeyboard } from '../hooks/useKeyboard'
 
 const SPEED = 4 // unidades/segundo
 const GRAVITY = 20 // unidades/segundo^2
 const JUMP_SPEED = 7 // unidades/segundo
 const EYE_HEIGHT = 1.7 // altura da camera em relacao ao chao (Y = 0)
+const MAX_ROPE = 30 // alcance maximo da teia, em unidades
 
 // vetores reutilizados por frame pra evitar alocacao dentro do useFrame
 const _forward = new Vector3()
 const _right = new Vector3()
 const _move = new Vector3()
+const _dir = new Vector3()
+const _raycaster = new Raycaster()
 
 type PlayerProps = {
   onLock?: () => void
@@ -20,14 +23,47 @@ type PlayerProps = {
 }
 
 export function Player({ onLock, onUnlock }: PlayerProps) {
-  const { camera } = useThree()
+  const { camera, scene } = useThree()
   const keys = useKeyboard()
   const velocityY = useRef(0)
+  const [anchor, setAnchor] = useState<Vector3 | null>(null)
+  const ropeLength = useRef(0)
 
   // camera comeca em pe no chao (uma vez so, nao a cada render)
   useEffect(() => {
     camera.position.y = EYE_HEIGHT
   }, [camera])
+
+  // raycast de teia: clique esquerdo procura anchor, soltar limpa o estado
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0 || !document.pointerLockElement) return
+
+      camera.getWorldDirection(_dir)
+      _raycaster.set(camera.position, _dir)
+      _raycaster.far = MAX_ROPE
+
+      const anchorables = scene.getObjectByName('anchorables')
+      if (!anchorables) return
+      const [hit] = _raycaster.intersectObjects(anchorables.children, true)
+      if (!hit) return
+
+      setAnchor(hit.point.clone())
+      ropeLength.current = hit.distance
+    }
+
+    const onPointerUp = (e: PointerEvent) => {
+      if (e.button !== 0) return
+      setAnchor(null)
+    }
+
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('pointerup', onPointerUp)
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('pointerup', onPointerUp)
+    }
+  }, [camera, scene])
 
   useFrame((_, delta) => {
     const k = keys.current
@@ -63,5 +99,16 @@ export function Player({ onLock, onUnlock }: PlayerProps) {
     }
   })
 
-  return <PointerLockControls onLock={onLock} onUnlock={onUnlock} />
+  return (
+    <>
+      <PointerLockControls onLock={onLock} onUnlock={onUnlock} />
+      {anchor && (
+        // marcador de debug visual do anchor; trocado pela corda de verdade na spec 2
+        <mesh position={anchor}>
+          <sphereGeometry args={[0.2]} />
+          <meshBasicMaterial color="red" />
+        </mesh>
+      )}
+    </>
+  )
 }
