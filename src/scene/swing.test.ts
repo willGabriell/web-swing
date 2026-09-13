@@ -3,12 +3,14 @@ import { Vector3 } from 'three'
 import {
   solveRopeConstraint,
   stepBody,
+  tiltTarget,
   type Body,
   EYE_HEIGHT,
   GRAVITY,
   WALK_SPEED,
   MAX_DELTA,
   MAX_SPEED,
+  TILT_MAX,
 } from './swing'
 
 const ZERO = new Vector3()
@@ -222,4 +224,41 @@ test('controle no ar: input soma velocidade, sem input nao freia', () => {
   run(body, 0.5, 1 / 60, FORWARD)
   expect(body.velocity.x).toBe(10)
   expect(body.velocity.z).toBeLessThan(-1)
+})
+
+// --- tiltTarget ---
+
+const RIGHT = new Vector3(1, 0, 0)
+
+test('tilt: sem anchor, alvo e zero', () => {
+  const body = makeBody({ velocity: new Vector3(20, 0, 0) })
+  expect(tiltTarget(body, RIGHT)).toBe(0)
+})
+
+test('tilt: anchor a direita com velocidade alta, sinal positivo e dentro do teto', () => {
+  const body = makeBody({
+    position: new Vector3(0, 10, 0),
+    anchor: new Vector3(10, 10, 0), // anchor no eixo +x, mesmo lado de RIGHT
+    ropeLength: 10,
+    velocity: new Vector3(0, 0, 30), // rapido, acima de TILT_SPEED_REF
+  })
+  const tilt = tiltTarget(body, RIGHT)
+  expect(tilt).toBeGreaterThan(0)
+  expect(tilt).toBeLessThanOrEqual(TILT_MAX)
+})
+
+test('tilt: velocidade baixa inclina bem menos que velocidade alta', () => {
+  const slow = makeBody({
+    position: new Vector3(0, 10, 0),
+    anchor: new Vector3(10, 10, 0),
+    ropeLength: 10,
+    velocity: new Vector3(0, 0, 1),
+  })
+  const fast = makeBody({
+    position: new Vector3(0, 10, 0),
+    anchor: new Vector3(10, 10, 0),
+    ropeLength: 10,
+    velocity: new Vector3(0, 0, 30),
+  })
+  expect(tiltTarget(slow, RIGHT)).toBeLessThan(tiltTarget(fast, RIGHT) / 2)
 })

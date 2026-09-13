@@ -1,10 +1,19 @@
 import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Line, PointerLockControls } from '@react-three/drei'
-import { Raycaster, Vector3 } from 'three'
+import { MathUtils, Raycaster, Vector3 } from 'three'
 import type { Line2 } from 'three-stdlib'
 import { useKeyboard } from '../hooks/useKeyboard'
-import { EYE_HEIGHT, HAND_DOWN, HAND_RIGHT, stepBody, type Body, type Input } from './swing'
+import {
+  EYE_HEIGHT,
+  HAND_DOWN,
+  HAND_RIGHT,
+  stepBody,
+  tiltTarget,
+  TILT_LAMBDA,
+  type Body,
+  type Input,
+} from './swing'
 
 const MAX_ROPE = 30 // alcance maximo da teia, em unidades
 
@@ -34,6 +43,7 @@ export function Player({ onLock, onUnlock, onAimChange }: PlayerProps) {
   const keys = useKeyboard()
   const rope = useRef<Line2>(null)
   const lastAimValid = useRef(false)
+  const roll = useRef(0)
   // body.position e a propria camera.position (alias): a fisica move a camera direto,
   // sem copia por frame. Tudo em ref, nada de state: clique nao re-renderiza.
   const body = useRef<Body>({
@@ -47,6 +57,10 @@ export function Player({ onLock, onUnlock, onAimChange }: PlayerProps) {
   // camera comeca em pe no chao (uma vez so, nao a cada render)
   useEffect(() => {
     camera.position.y = EYE_HEIGHT
+    // PointerLockControls decompoe a rotacao em Euler(YXZ) e so sobrescreve x/y
+    // (mouse look), preservando z (roll). Sem isso aqui o euler fica na ordem
+    // default (XYZ) e escrever rotation.z reinterpreta yaw/pitch, entortando a vista.
+    camera.rotation.order = 'YXZ'
   }, [camera])
 
   // clique esquerdo consome o resultado do raycast continuo (calculado no useFrame); soltar limpa o anchor
@@ -123,6 +137,10 @@ export function Player({ onLock, onUnlock, onAimChange }: PlayerProps) {
         rope.current.visible = true
       }
     }
+
+    // tilt de camera: roll suave em direcao a curva do balanco, some ao soltar
+    roll.current = MathUtils.damp(roll.current, tiltTarget(body.current, _right), TILT_LAMBDA, delta)
+    camera.rotation.z = roll.current
   })
 
   return (

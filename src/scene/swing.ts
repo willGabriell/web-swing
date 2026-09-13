@@ -13,6 +13,9 @@ export const MAX_STEP = 1 / 120 // substep maximo do integrador
 export const MAX_DELTA = 0.1 // clamp do delta de frame (aba em background, lag spike)
 export const HAND_RIGHT = 0.3 // corda visual: deslocamento lateral da origem em relacao a camera
 export const HAND_DOWN = 0.25 // corda visual: deslocamento pra baixo, senao nasce dentro do olho
+export const TILT_MAX = 0.35 // rad (~20deg), teto do roll de camera no balanco
+export const TILT_SPEED_REF = 20 // |v| onde o tilt chega no maximo
+export const TILT_LAMBDA = 6 // taxa da suavizacao exponencial (MathUtils.damp) do roll
 
 export type Body = {
   position: Vector3
@@ -27,8 +30,9 @@ export type Input = {
   jump: boolean
 }
 
-// vetor temporario reutilizado por chamada pra evitar alocacao no loop de frame
+// vetores temporarios reutilizados por chamada pra evitar alocacao no loop de frame
 const _radial = new Vector3()
+const _toAnchor = new Vector3()
 
 /**
  * Restricao de distancia da corda (position based dynamics simplificado):
@@ -125,4 +129,26 @@ export function stepBody(body: Body, input: Input, delta: number): void {
       body.grounded = false
     }
   }
+}
+
+/**
+ * Roll alvo (rad) da camera pro balanco atual: inclina pro lado do anchor,
+ * proporcional a velocidade (mais rapido = mais inclinado, ate TILT_MAX).
+ * Sem anchor, alvo e zero. `right` e o vetor lateral da camera (mundo, y = 0).
+ *
+ * Nao aplica suavizacao nem escreve em camera.rotation.z — isso e trabalho de
+ * Player.tsx (MathUtils.damp por frame), essa funcao so calcula o alvo, pra
+ * poder testar sem r3f/camera.
+ */
+export function tiltTarget(body: Body, right: Vector3): number {
+  if (!body.anchor) return 0
+
+  _toAnchor.copy(body.anchor).sub(body.position)
+  _toAnchor.y = 0
+  if (_toAnchor.lengthSq() === 0) return 0
+  _toAnchor.normalize()
+
+  const lateral = _toAnchor.dot(right) // >0 = anchor a direita, <0 = a esquerda
+  const speedFactor = Math.min(body.velocity.length() / TILT_SPEED_REF, 1)
+  return lateral * speedFactor * TILT_MAX
 }
